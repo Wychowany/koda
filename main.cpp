@@ -6,7 +6,7 @@ using namespace std;
 
 int main() {
 
-    pair<char *, int> imageInfo = ImageReader::readImg("lena.png");
+    pair<char *, int> imageInfo = ImageReader::readImg("sample.png");
     char *imagePointer = imageInfo.first;
     long numberOfBytes = imageInfo.second;
     pair<int, int> statistics = BAC::calculate_statistics(imagePointer, numberOfBytes);

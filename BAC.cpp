@@ -3,75 +3,93 @@
 //
 
 #include "BAC.h"
+#include <bitset>
+#include <iostream>
 
 using namespace std;
 
 unsigned short int BAC::bottom;
-unsigned short int BAC::top;
+unsigned long long int R;
 long BAC::insufficiency;
-long BAC::encodedIndex;
+long BAC::numberOfEncodedBits;
+long BAC::numberOfDecodedBits;
+unsigned short int code;
+long numberOfReadBits;
 
-std::pair<char *, int> BAC::encode(const char *bytesToEncode, int n_zero, int n_one) {
-    BAC::initialize();
-    int number_of_bytes = (n_zero + n_one) / 8;
-    char *res = new char[number_of_bytes];
-    long R;
-    for (int i = 0; i < number_of_bytes; i++) {
-        char byte = *(bytesToEncode + i);
-        for (int j = 0; j < 8; j++) {
-            R = top - bottom + 1;
-            unsigned short int R1 = R * n_zero / (n_zero + n_one);
-            if (!getBit(byte, j)) {
-                top = bottom + R1;
-            } else {
-                bottom = bottom + R1;
-            }
 
-            for (;;) {
-                if ((getBit(top, 15)) == (getBit(bottom, 15))) {
-                    encodedIndex++;
-                    if (getBit(top, 15)) {
-                        *(res + (encodedIndex / 8)) |= 1UL << (encodedIndex % 8);
-                    } else {
-                        *(res + (encodedIndex / 8)) &= ~(1UL << (encodedIndex % 8));
-                    }
-
-                    while (insufficiency > 0) {
-                        encodedIndex++;
-                        if (!getBit(top, 15)) {
-                            *(res + (encodedIndex / 8)) |= 1UL << (encodedIndex % 8);
-                        } else {
-                            *(res + (encodedIndex / 8)) &= ~(1UL << (encodedIndex % 8));
-                        }
-                        insufficiency--;
-                    }
-                } else if ((getBit(bottom, 14)) && !(getBit(top, 14))) {
-                    insufficiency++;
-                    bottom &= 0x3fff;
-                    top |= 0x4000;
-                } else {
-                    break;
-                }
-                bottom <<= 1;
-                top <<= 1;
-                top |= 1;
-            }
-        }
-    }
-    cout << encodedIndex << endl;
-    cout << number_of_bytes * 8 << endl;
-    return std::make_pair(res, encodedIndex + 1);
-}
+#define HALF 1 << 15
+#define QUARTER 1 << 14
 
 void BAC::initialize() {
     bottom = 0x0000;
-    top = 0xffff;
     insufficiency = 0;
-    encodedIndex = -1;
+    R = 0xffff + 1;
+    numberOfEncodedBits = 0;
+    numberOfDecodedBits = 0;
+    code = 0;
+    numberOfReadBits = 0;
 }
 
-bool BAC::getBit(unsigned short r, int position) {
-    return static_cast<bool>((r >> position) & 0x1);
+
+std::pair<char *, int> BAC::encode(const char *bytesToEncode, unsigned int n_zero, unsigned int n_one) {
+    initialize();
+    unsigned int numberOfBits = (n_zero + n_one);
+    unsigned int numberOfBytes = numberOfBits / 8;
+    char *result = new char[numberOfBytes];
+    for (int i = 0; i < numberOfBytes; i++) {
+
+        const char currentByte = *(bytesToEncode + i);
+
+        for (int j = 0; j < 8; j++) {
+            unsigned long long int R1 = R * n_zero / (n_zero + n_one);
+            unsigned long long int R2 = R - R1;
+            if (getBit(currentByte, j) == 0) {
+                R = R1;
+                bottom = bottom + R2;
+            } else {
+                R = R2;
+            }
+            normalizeEncoder(result);
+        }
+    }
+    cout <<"Original number of bits: "<< numberOfBytes * 8 << endl;
+    cout << "Encoded number of bits: " << numberOfEncodedBits << endl;
+    return std::make_pair(result, numberOfEncodedBits);
+}
+
+void BAC::normalizeEncoder(char *result) {
+    while (R <= QUARTER) {
+        if (bottom >= HALF) {
+            *(result + numberOfEncodedBits / 8) |= 1UL << (numberOfEncodedBits % 8);
+            numberOfEncodedBits++;
+            while (insufficiency > 0) {
+                *(result + numberOfEncodedBits / 8) &= ~(1UL << (numberOfEncodedBits % 8));
+                numberOfEncodedBits++;
+                insufficiency--;
+            }
+            bottom -= HALF;
+        } else if (bottom + R <= HALF) {
+            *(result + numberOfEncodedBits / 8) &= ~(1UL << (numberOfEncodedBits % 8));
+            numberOfEncodedBits++;
+            while (insufficiency > 0) {
+                *(result + numberOfEncodedBits / 8) |= 1UL << (numberOfEncodedBits % 8);
+                numberOfEncodedBits++;
+                insufficiency--;
+            }
+        } else {
+            insufficiency++;
+            bottom -= QUARTER;
+        }
+        bottom <<= 1;
+        R <<= 1;
+//        cout<<"R:" <<R<<endl;
+//        cout<<"bottm:" <<bottom<<endl;
+    }
+}
+
+// returns 0 or 1, where 0 position is least significant
+int BAC::getBit(unsigned short r, int position) {
+    return (r >> position) & 1;
 }
 
 std::pair<int, int> BAC::calculate_statistics(const char *data, long numberOfBytes) {
@@ -91,57 +109,54 @@ std::pair<int, int> BAC::calculate_statistics(const char *data, long numberOfByt
 }
 
 std::pair<char *, int>
-BAC::decode(const char *bytes_to_decode, int number_of_bits, int n_zero, int n_one, long originalNumberOfBytes) {
-    char *original = new char[originalNumberOfBytes];
-    long readIndex;
-    long decodedIndex = 0;
-    BAC::initialize();
-    unsigned int code = 0x0000;
+BAC::decode(char *bytes_to_decode, int number_of_bits, int n_zero, int n_one, long originalNumberOfBytes) {
+    initialize();
+    char *result = new char[originalNumberOfBytes];
+    long originalNumberOfBits = originalNumberOfBytes * 8;
     for (int i = 0; i < 16; i++) {
+        code <<= 1;
         if (getBit(*(bytes_to_decode + i / 8), i % 8)) {
             code |= 1UL << i;
         }
     }
-    readIndex = 16;
-    bool zero;
-    while (readIndex < number_of_bits - 1) {
-        long R = top - bottom + 1;
-        unsigned short int R1 = R * n_zero / (n_zero + n_one);
-        if (code - bottom < R1) {
-            zero = true;
-            top = bottom + R1;
-        } else {
-            zero = false;
-            bottom = bottom + R1;
-        }
-        for (;;) {
-            if ((getBit(top, 15)) == (getBit(bottom, 15))) {
+    numberOfReadBits = 15;
 
-            } else if ((((bottom) & 0x4000) == 0x4000) && ((top & 0x4000) == 0)) {
-                code ^= 0x4000;
-                bottom &= 0x3fff;
-                top |= 0x4000;
-            } else {
-                if (zero) {
-                    *(original + (decodedIndex / 8)) &= ~(1UL << (decodedIndex % 8));
-                } else {
-                    *(original + (decodedIndex / 8)) |= 1UL << (decodedIndex % 8);
-                }
-                decodedIndex++;
-                break;
-            }
-            bottom <<= 1;
-            top <<= 1;
-            top |= 1;
-            code <<= 1;
-            if (getBit(*(bytes_to_decode + readIndex / 8), readIndex % 8)) {
-                code |= 1UL << 0;
-            }
-            readIndex++;
+    while (numberOfDecodedBits < originalNumberOfBits) {
+        unsigned int R1 = R * n_zero / (n_zero + n_one);
+        unsigned int R2 = R - R1;
+        if (code - bottom >= R2) {
+            R = R1;
+            bottom = bottom + R2;
+            *(result + numberOfDecodedBits / 8) &= ~(1UL << (numberOfDecodedBits % 8));
+        } else {
+            R = R2;
+            *(result + numberOfDecodedBits / 8) |= 1UL << (numberOfDecodedBits % 8);
         }
+        numberOfDecodedBits++;
+        normalizeDecoder(bytes_to_decode);
     }
-    cout << decodedIndex<<endl;
-    return std::make_pair(original, decodedIndex);
+    return std::make_pair(result, originalNumberOfBits);
+}
+
+void BAC::normalizeDecoder(char *bytes_to_decode) {
+    while (R <= QUARTER) {
+        if (bottom + R <= HALF) {
+
+        } else if (bottom >= HALF) {
+            bottom -= HALF;
+            code -= HALF;
+        } else {
+            bottom -= QUARTER;
+            code -= QUARTER;
+        }
+        bottom <<= 1;
+        R <<= 1;
+        code <<= 1;
+        if (getBit(*(bytes_to_decode + numberOfReadBits / 8), numberOfReadBits % 8)) {
+            code = code + 1;
+        }
+        numberOfReadBits++;
+    }
 }
 
 
