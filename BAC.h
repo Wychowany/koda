@@ -20,7 +20,7 @@ private:
     static void initialize();
     static int getBit(unsigned short r, int position);
     static void normalizeEncoder(char * result);
-    static void normalizeDecoder(char * result);
+    static void normalizeDecoder(const char * result);
 };
 
 

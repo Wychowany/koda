@@ -52,7 +52,7 @@ std::pair<char *, int> BAC::encode(const char *bytesToEncode, unsigned int n_zer
             normalizeEncoder(result);
         }
     }
-    cout <<"Original number of bits: "<< numberOfBytes * 8 << endl;
+    cout << "Original number of bits: " << numberOfBytes * 8 << endl;
     cout << "Encoded number of bits: " << numberOfEncodedBits << endl;
     return std::make_pair(result, numberOfEncodedBits);
 }
@@ -82,12 +82,10 @@ void BAC::normalizeEncoder(char *result) {
         }
         bottom <<= 1;
         R <<= 1;
-//        cout<<"R:" <<R<<endl;
-//        cout<<"bottm:" <<bottom<<endl;
     }
 }
 
-// returns 0 or 1, where 0 position is least significant
+// returns 0 or 1, where 0 position is least significant bit
 int BAC::getBit(unsigned short r, int position) {
     return (r >> position) & 1;
 }
@@ -115,15 +113,13 @@ BAC::decode(char *bytes_to_decode, int number_of_bits, int n_zero, int n_one, lo
     long originalNumberOfBits = originalNumberOfBytes * 8;
     for (int i = 0; i < 16; i++) {
         code <<= 1;
-        if (getBit(*(bytes_to_decode + i / 8), i % 8)) {
-            code |= 1UL << i;
-        }
+        code += getBit(*(bytes_to_decode + i / 8), i);
     }
-    numberOfReadBits = 15;
+    numberOfReadBits = 16;
 
     while (numberOfDecodedBits < originalNumberOfBits) {
-        unsigned int R1 = R * n_zero / (n_zero + n_one);
-        unsigned int R2 = R - R1;
+        unsigned long int R1 = R * n_zero / (n_zero + n_one);
+        unsigned long long R2 = R - R1;
         if (code - bottom >= R2) {
             R = R1;
             bottom = bottom + R2;
@@ -138,7 +134,7 @@ BAC::decode(char *bytes_to_decode, int number_of_bits, int n_zero, int n_one, lo
     return std::make_pair(result, originalNumberOfBits);
 }
 
-void BAC::normalizeDecoder(char *bytes_to_decode) {
+void BAC::normalizeDecoder(const char *bytes_to_decode) {
     while (R <= QUARTER) {
         if (bottom + R <= HALF) {
 
@@ -152,9 +148,7 @@ void BAC::normalizeDecoder(char *bytes_to_decode) {
         bottom <<= 1;
         R <<= 1;
         code <<= 1;
-        if (getBit(*(bytes_to_decode + numberOfReadBits / 8), numberOfReadBits % 8)) {
-            code = code + 1;
-        }
+        code += getBit(*(bytes_to_decode + numberOfReadBits / 8), numberOfReadBits % 8);
         numberOfReadBits++;
     }
 }
