@@ -106,53 +106,15 @@ std::pair<int, int> BAC::calculate_statistics(const char *data, long numberOfByt
     return std::make_pair(zero, one);
 }
 
-std::pair<char *, int>
-BAC::decode(char *bytes_to_decode, int number_of_bits, int n_zero, int n_one, long originalNumberOfBytes) {
+pair<char *, int> BAC::decode(char *bytes_to_decode, int number_of_bits, int n_zero, int n_one) {
     initialize();
-    char *result = new char[originalNumberOfBytes];
-    long originalNumberOfBits = originalNumberOfBytes * 8;
-    unsigned short int a = 0x0000;
+    char *result = new char[(number_of_bits / 8) * 2];
 
     for (int i = 0; i < 16; i++) {
         code <<= 1;
         code += getBit(*(bytes_to_decode + i / 8), i % 8);
-        if (getBit(*(bytes_to_decode + i / 8), i % 8) == 1) {
-            a |= 1UL << (15-i);
-        } else {
-            a &= ~(1UL << (15-i));
-        }
     }
 
-    for (int i = 0; i < 16; i++) {
-        if (getBit(*(bytes_to_decode + i / 8), i % 8) == 1) {
-            cout << "1";
-        } else {
-            cout << "0";
-        }
-    }
-
-    cout << endl;
-    for (int i = 0; i < 16; i++) {
-        if (getBit(code, i) == 1) {
-            cout << "1";
-        } else {
-            cout << "0";
-        }
-    }
-    cout << endl;
-
-    for (int i = 0; i < 16; i++) {
-        if (getBit(a, i) == 1) {
-            cout << "1";
-        } else {
-            cout << "0";
-        }
-    }
-    cout << endl << "ASD" << endl;
-    cout << endl;
-    cout << std::bitset<8>(*(bytes_to_decode)) << endl;
-    cout << std::bitset<8>(*(bytes_to_decode+1)) << endl;
-    cout << std::bitset<64>(a) << endl;
     numberOfReadBits = 16;
 
     while (numberOfReadBits < number_of_bits) {
@@ -169,7 +131,7 @@ BAC::decode(char *bytes_to_decode, int number_of_bits, int n_zero, int n_one, lo
         numberOfDecodedBits++;
         normalizeDecoder(bytes_to_decode);
     }
-    return std::make_pair(result, originalNumberOfBits);
+    return std::make_pair(result, numberOfDecodedBits);
 }
 
 void BAC::normalizeDecoder(const char *bytes_to_decode) {

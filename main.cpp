@@ -13,7 +13,7 @@ int main() {
     int number_of_zeros = statistics.first;
     int number_of_ones = statistics.second;
     pair<char *, int> encoded = BAC::encode(imagePointer, number_of_zeros, number_of_ones);
-    pair<char *, int> decoded = BAC::decode(encoded.first, encoded.second, number_of_zeros, number_of_ones, numberOfBytes);
-    ImageReader::write(decoded.first, decoded.second/8);
+    pair<char *, int> decoded = BAC::decode(encoded.first, encoded.second, number_of_zeros, number_of_ones);
+    ImageReader::write(decoded.first, decoded.second / 8);
 }
 
