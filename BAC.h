@@ -18,7 +18,7 @@ private:
     static long insufficiency;
     static long numberOfDecodedBits;
     static void initialize();
-    static int getBit(unsigned short r, int position);
+    static unsigned int getBit(unsigned int r, int position);
     static void normalizeEncoder(char * result);
     static void normalizeDecoder(const char * result);
 };

@@ -26,7 +26,7 @@ void BAC::initialize() {
     R = 0xffff + 1;
     numberOfEncodedBits = 0;
     numberOfDecodedBits = 0;
-    code = 0;
+    code = 0x0000;
     numberOfReadBits = 0;
 }
 
@@ -86,8 +86,8 @@ void BAC::normalizeEncoder(char *result) {
 }
 
 // returns 0 or 1, where 0 position is least significant bit
-int BAC::getBit(unsigned short r, int position) {
-    return (r >> position) & 1;
+unsigned int BAC::getBit(unsigned int r, int position) {
+    return (r >> position) & 0x1;
 }
 
 std::pair<int, int> BAC::calculate_statistics(const char *data, long numberOfBytes) {
@@ -111,15 +111,53 @@ BAC::decode(char *bytes_to_decode, int number_of_bits, int n_zero, int n_one, lo
     initialize();
     char *result = new char[originalNumberOfBytes];
     long originalNumberOfBits = originalNumberOfBytes * 8;
+    unsigned short int a = 0x0000;
+
     for (int i = 0; i < 16; i++) {
         code <<= 1;
-        code += getBit(*(bytes_to_decode + i / 8), i);
+        code += getBit(*(bytes_to_decode + i / 8), i % 8);
+        if (getBit(*(bytes_to_decode + i / 8), i % 8) == 1) {
+            a |= 1UL << (15-i);
+        } else {
+            a &= ~(1UL << (15-i));
+        }
     }
+
+    for (int i = 0; i < 16; i++) {
+        if (getBit(*(bytes_to_decode + i / 8), i % 8) == 1) {
+            cout << "1";
+        } else {
+            cout << "0";
+        }
+    }
+
+    cout << endl;
+    for (int i = 0; i < 16; i++) {
+        if (getBit(code, i) == 1) {
+            cout << "1";
+        } else {
+            cout << "0";
+        }
+    }
+    cout << endl;
+
+    for (int i = 0; i < 16; i++) {
+        if (getBit(a, i) == 1) {
+            cout << "1";
+        } else {
+            cout << "0";
+        }
+    }
+    cout << endl << "ASD" << endl;
+    cout << endl;
+    cout << std::bitset<8>(*(bytes_to_decode)) << endl;
+    cout << std::bitset<8>(*(bytes_to_decode+1)) << endl;
+    cout << std::bitset<64>(a) << endl;
     numberOfReadBits = 16;
 
-    while (numberOfDecodedBits < originalNumberOfBits) {
-        unsigned long int R1 = R * n_zero / (n_zero + n_one);
-        unsigned long long R2 = R - R1;
+    while (numberOfReadBits < number_of_bits) {
+        unsigned long long int R1 = R * n_zero / (n_zero + n_one);
+        unsigned long long int R2 = R - R1;
         if (code - bottom >= R2) {
             R = R1;
             bottom = bottom + R2;
