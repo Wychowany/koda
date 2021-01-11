@@ -15,4 +15,3 @@ int main() {
     pair<char *, int> decoded = BAC::decode(encoded.first, encoded.second, number_of_zeros, number_of_ones);
     ImageReader::write(decoded.first, decoded.second / 8);
 }
-
