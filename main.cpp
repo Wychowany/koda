@@ -5,7 +5,6 @@
 using namespace std;
 
 int main() {
-
     pair<char *, int> imageInfo = ImageReader::readImg("lena.png");
     char *imagePointer = imageInfo.first;
     long numberOfBytes = imageInfo.second;

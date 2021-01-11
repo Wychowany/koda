@@ -13,7 +13,6 @@ public:
     static std::pair<int, int> calculate_statistics(const char *data, long numberOfBytes);
 
     static std::pair<char *, int> decode(char *bytes_to_decode, int number_of_bits, int n_zero, int n_one);
-
 private:
     static unsigned short int bottom;
     static long numberOfEncodedBits;
@@ -22,11 +21,11 @@ private:
 
     static void initialize();
 
-    static unsigned int getBit(unsigned int r, int position);
-
     static void normalizeEncoder(char *result);
 
-    static void normalizeDecoder(const char *result);
+    static void normalizeDecoder(const char *result, int number_of_bits);
+
+    static unsigned int getBit(unsigned int r, int position);
 };
 
 

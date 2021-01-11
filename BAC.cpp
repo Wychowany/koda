@@ -4,7 +4,6 @@
 
 #include "BAC.h"
 #include <bitset>
-#include <iostream>
 
 using namespace std;
 
@@ -37,9 +36,7 @@ std::pair<char *, int> BAC::encode(const char *bytesToEncode, unsigned int n_zer
     unsigned int numberOfBytes = numberOfBits / 8;
     char *result = new char[numberOfBytes];
     for (int i = 0; i < numberOfBytes; i++) {
-
         const char currentByte = *(bytesToEncode + i);
-
         for (int j = 0; j < 8; j++) {
             unsigned long long int R1 = R * n_zero / (n_zero + n_one);
             unsigned long long int R2 = R - R1;
@@ -52,8 +49,14 @@ std::pair<char *, int> BAC::encode(const char *bytesToEncode, unsigned int n_zer
             normalizeEncoder(result);
         }
     }
-    cout << "Original number of bits: " << numberOfBytes * 8 << endl;
-    cout << "Encoded number of bits: " << numberOfEncodedBits << endl;
+
+    *(result + numberOfEncodedBits / 8) |= 1UL << (numberOfEncodedBits % 8);
+    numberOfEncodedBits++;
+
+    if (getBit(bottom, 15) == 1) {
+        *(result + numberOfEncodedBits / 8) |= 1UL << (numberOfEncodedBits % 8);
+        numberOfEncodedBits++;
+    }
     return std::make_pair(result, numberOfEncodedBits);
 }
 
@@ -109,15 +112,27 @@ std::pair<int, int> BAC::calculate_statistics(const char *data, long numberOfByt
 pair<char *, int> BAC::decode(char *bytes_to_decode, int number_of_bits, int n_zero, int n_one) {
     initialize();
     char *result = new char[(number_of_bits / 8) * 2];
-
     for (int i = 0; i < 16; i++) {
         code <<= 1;
         code += getBit(*(bytes_to_decode + i / 8), i % 8);
     }
-
     numberOfReadBits = 16;
+    int insufficientDecodes = 0;
+    int todoDecodes = 16;
 
-    while (numberOfReadBits < number_of_bits) {
+    while (insufficientDecodes != todoDecodes) {
+        if (numberOfReadBits == number_of_bits && insufficientDecodes == 0) {
+            long rest = (numberOfDecodedBits + 16) % 8;
+            if (rest != 0 && rest < 4) {
+                todoDecodes = todoDecodes - rest;
+
+            } else if (rest != 0 && rest >= 4) {
+                todoDecodes = todoDecodes + (8-rest);
+            }
+        }
+        if (numberOfReadBits == number_of_bits) {
+            insufficientDecodes++;
+        }
         unsigned long long int R1 = R * n_zero / (n_zero + n_one);
         unsigned long long int R2 = R - R1;
         if (code - bottom >= R2) {
@@ -129,12 +144,12 @@ pair<char *, int> BAC::decode(char *bytes_to_decode, int number_of_bits, int n_z
             *(result + numberOfDecodedBits / 8) |= 1UL << (numberOfDecodedBits % 8);
         }
         numberOfDecodedBits++;
-        normalizeDecoder(bytes_to_decode);
+        normalizeDecoder(bytes_to_decode, number_of_bits);
     }
     return std::make_pair(result, numberOfDecodedBits);
 }
 
-void BAC::normalizeDecoder(const char *bytes_to_decode) {
+void BAC::normalizeDecoder(const char *bytes_to_decode, int number_of_bits) {
     while (R <= QUARTER) {
         if (bottom + R <= HALF) {
 
@@ -148,8 +163,10 @@ void BAC::normalizeDecoder(const char *bytes_to_decode) {
         bottom <<= 1;
         R <<= 1;
         code <<= 1;
-        code += getBit(*(bytes_to_decode + numberOfReadBits / 8), numberOfReadBits % 8);
-        numberOfReadBits++;
+        if (numberOfReadBits != number_of_bits) {
+            code += getBit(*(bytes_to_decode + numberOfReadBits / 8), numberOfReadBits % 8);
+            numberOfReadBits++;
+        }
     }
 }
 
